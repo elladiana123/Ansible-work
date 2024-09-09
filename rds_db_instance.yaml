@@ -1,58 +1,110 @@
-#################### CREATE RDS DATABASE ###################
+# #################### CREATE RDS DATABASE ###################
+# ---
+# - name: "{{ play_name }}"
+#   hosts: "{{ hosts }}"
+#   connection: "{{ connection }}"
+#   gather_facts: "{{ gather_facts }}"
+#   vars_files:
+#     - variables/vars_rds_db_instance.yaml
+#     - variables/vars_rds_db_subnet_group.yaml
+#   vars:
+#     ansible_python_interpreter: /usr/bin/python3
+
+#     # This Task Provisions The Application Database Instance
+#   tasks:
+#   - name                  : "{{ task_name }}"
+#     rds_instance:
+#       id                  : "{{ db_identifier }}"
+#       state               : "{{ db_state }}"
+#       region              : "{{ db_region }}"
+#       engine              : "{{ db_engine }}"
+#       username            : "{{ db_username }}"
+#       password            : "{{ db_password }}"
+#       db_instance_class   : "{{ db_instance_class }}"
+#       allocated_storage   : "{{ db_allocated_storage }}"
+#       storage_encrypted   : "{{ db_storage_encrypted }}"
+#       skip_final_snapshot : "{{ db_skip_final_snapshot }}"
+#       db_name             : "{{ db_name }}"
+#       db_subnet_group_name: "{{ db_subnet_group_name }}"
+#       vpc_security_group_ids  : 
+#         - "{{ db_vpc_security_group_ids }}"
+
+
+# ################## CREATE DB SUBNET GROUP #################
+# # ---
+# # - name        : "{{ play_name }}"
+# #   hosts       : "{{ hosts }}"
+# #   connection  : "{{ connection }}"
+# #   gather_facts: "{{ gather_facts }}"
+# #   vars_files:
+# #     - variables/vars_rds_db_subnet_group.yaml 
+# #   vars:
+# #     ansible_python_interpreter: /usr/bin/python3 
+
+# #   tasks:
+# #     - name: Create DB Subnet Group
+# #       rds_subnet_group:
+# #         name          : "{{ db_subnet_group_name }}"
+# #         description   : "{{ db_subnet_group_description }}"
+# #         subnets       : "{{ db_subnets }}"
+# #         state         : "{{ state }}"
+# #         region        : "{{ aws_region }}"
+# #       register        : subnet_group_result
+
+# #     - name : Debug Subnet Group Result
+# #       debug:
+# #         var: subnet_group_result
+
+
+
 ---
 - name: "{{ play_name }}"
   hosts: "{{ hosts }}"
-  connection: "{{ connection }}"
   gather_facts: "{{ gather_facts }}"
   vars_files:
     - variables/vars_rds_db_instance.yaml
-    - variables/vars_rds_db_subnet_group.yaml
+  connection: "{{ connection }}"
+
   vars:
-    ansible_python_interpreter: /usr/bin/python3
+    # AWS Region
+    aws_region: "{{ aws_region }}"
+    # Subnet Group Variables
+    db_subnet_group_name: "{{ db_subnet_group_name }}"
+    db_subnet_group_description: "{{ db_subnet_group_description }}"
+    db_subnets:
+      - subnet-0591fdd915b346874
+      - subnet-07403c68991f8a09e"
+    # RDS Instance Variables
+    db_instance_identifier: "my-wordpress-db"
+    db_instance_class: "db.t3.micro"
+    engine: "mysql"
+    allocated_storage: 20
+    master_username: "admin"
+    master_user_password: "adminadmin"
+    vpc_security_group_ids:
+      - "sg-0ee4107c389a87c51"  # Replace with actual security group ID
 
-    # This Task Provisions The Application Database Instance
   tasks:
-  - name                  : "{{ task_name }}"
-    rds_instance:
-      id                  : "{{ db_identifier }}"
-      state               : "{{ db_state }}"
-      region              : "{{ db_region }}"
-      engine              : "{{ db_engine }}"
-      username            : "{{ db_username }}"
-      password            : "{{ db_password }}"
-      db_instance_class   : "{{ db_instance_class }}"
-      allocated_storage   : "{{ db_allocated_storage }}"
-      storage_encrypted   : "{{ db_storage_encrypted }}"
-      skip_final_snapshot : "{{ db_skip_final_snapshot }}"
-      db_name             : "{{ db_name }}"
-      db_subnet_group_name: "{{ db_subnet_group_name }}"
-      vpc_security_group_ids  : 
-        - "{{ db_vpc_security_group_ids }}"
+    - name: "Create DB Subnet Group"
+      community.aws.rds_subnet_group:
+        state: "{{ state }}"
+        aws_region: "{{ aws_region }}"
+        db_subnet_group_name: "{{ db_subnet_group_name }}"
+        db_subnet_group_description: "{{ db_subnet_group_description }}"
+        subnets: "{{ db_subnets }}"
+      register: subnet_group
 
-
-################## CREATE DB SUBNET GROUP #################
-# ---
-# - name        : "{{ play_name }}"
-#   hosts       : "{{ hosts }}"
-#   connection  : "{{ connection }}"
-#   gather_facts: "{{ gather_facts }}"
-#   vars_files:
-#     - variables/vars_rds_db_subnet_group.yaml 
-#   vars:
-#     ansible_python_interpreter: /usr/bin/python3 
-
-#   tasks:
-#     - name: Create DB Subnet Group
-#       rds_subnet_group:
-#         name          : "{{ db_subnet_group_name }}"
-#         description   : "{{ db_subnet_group_description }}"
-#         subnets       : "{{ db_subnets }}"
-#         state         : "{{ state }}"
-#         region        : "{{ aws_region }}"
-#       register        : subnet_group_result
-
-#     - name : Debug Subnet Group Result
-#       debug:
-#         var: subnet_group_result
-
-
+    - name: "Create RDS Instance"
+      community.aws.rds:
+        state: present
+        aws_region: "{{ aws_region }}"
+        db_instance_identifier: "{{ db_instance_identifier }}"
+        db_instance_class: "{{ db_instance_class }}"
+        engine: "{{ engine }}"
+        allocated_storage: "{{ allocated_storage }}"
+        master_username: "{{ master_username }}"
+        master_user_password: "{{ master_user_password }}"
+        db_subnet_group_name: "{{ db_subnet_group_name }}"
+        vpc_security_group_ids: "{{ vpc_security_group_ids }}"
+      when: subnet_group.changed
+      register: rds_instance
