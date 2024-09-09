@@ -24,3 +24,5 @@ db_skip_final_snapshot : true          # Set to "true" to skip the final snapsho
 db_name                : "wordpressdb" # Provide your desired initial database name
 db_subnet_group_name   : "database-sg"
 db_vpc_security_group_ids : "sg-0ee4107c389a87c51"
+
+
